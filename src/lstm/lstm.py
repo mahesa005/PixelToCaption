@@ -1,4 +1,5 @@
 import numpy as np
+from ..shared.activation_functions import tanh, sigmoid
 
 class LSTM:
     """
@@ -31,6 +32,7 @@ class LSTM:
     def forward(self, x, cell_state, hidden_state):
         pass
 
-
-    def forget(self, x, cell_sate, hidden_state):
-        
+    def forget(self, x, hidden_state):
+        output_x = self.W_f @ x
+        output_h = self.U_f @ hidden_state
+        output = 
