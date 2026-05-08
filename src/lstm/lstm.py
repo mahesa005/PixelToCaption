@@ -37,11 +37,29 @@ class LSTM:
         candidate = self.candidate(x, h_prev)
         o = self.output_gate(x, h_prev)
         c = c_prev * f + (candidate * i)
-        h = tanh(c) * o
-        return h, c
+        tanh_c = tanh(c)
+        h = tanh_c * o
 
-    def backward(self):
+        # cache the current timestep for later use in backprop
+        cache = {
+            'x':         x,           # for dW_f, dW_i, dW_c, dW_o
+            'h_prev':    h_prev,         # for dU_f, dU_i, dU_c, dU_o
+            'c_prev':    c_prev,         # for dc/df
+            'f':         f,           # for sigmoid derivative
+            'i':         i,
+            'candidate': candidate,
+            'o':         o,
+            'c':         c,
+            'tanh_c':    tanh_c,         # for tanh derivative
+        }
+        return h, c, cache
+
+    def backward(self, dh, dc, cache):
+    # dh: gradient of loss w.r.t. h at this timestep
+    # dc: gradient of loss w.r.t. c at this timestep  
+    # cache: saved values from forward()
         pass
+
 
     def forget_gate(self, x, h_prev):
         output_x = x @ self.W_f
