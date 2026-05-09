@@ -27,10 +27,15 @@ class EmbeddingLayer:
         return self.weights[token]
 
     def backward(self, grad_out):
-        pass
-        # self.dW = np.zeros_like(self.weights)
-        # self.dW[self.token_id] = grad_out  # update baris yang dipake aja
-        # return self.dW
+        # matriks graiden kosong berukuran sama dengan matriks embedding
+        self.dW = np.zeros_like(self.weights)
+
+        # hanya update baris yang digunakan (token) dengan gradien yang diterima
+        self.dW[self.token_id] = grad_out[0]
+
+        # karena Embedding layer adalah layer paling bawah/input
+        # tidak ada gradien untuk diteruskan ke layer sebelumnya
+        return None
 
         
         
