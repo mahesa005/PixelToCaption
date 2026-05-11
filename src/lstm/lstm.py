@@ -1,5 +1,3 @@
-import pathlib
-# pyrefly: ignore [missing-import]
 import numpy as np
 from ..shared.activation_functions import tanh, sigmoid
 
@@ -25,11 +23,11 @@ class LSTM:
                 self.b = np.random.randn(4 * hidden_dim)
             else:
                 raise ValueError("Incorrect Parameters")
-
         h = self.hidden_dim
         self.W_i, self.W_f, self.W_c, self.W_o = self.W[:, 0*h:1*h], self.W[:, 1*h:2*h], self.W[:, 2*h:3*h], self.W[:, 3*h:4*h]
         self.U_i, self.U_f, self.U_c, self.U_o = self.U[:, 0*h:1*h], self.U[:, 1*h:2*h], self.U[:, 2*h:3*h], self.U[:, 3*h:4*h]
         self.b_i, self.b_f, self.b_c, self.b_o = self.b[0*h:1*h], self.b[1*h:2*h], self.b[2*h:3*h], self.b[3*h:4*h]
+        self.embed_dim = self.W.shape[0]
 
     def forward(self, x, c_prev, h_prev):
         f = self.forget_gate(x, h_prev)
@@ -55,10 +53,51 @@ class LSTM:
         return h, c, cache
 
     def backward(self, dh, dc, cache):
-    # dh: gradient of loss w.r.t. h at this timestep
-    # dc: gradient of loss w.r.t. c at this timestep  
-    # cache: saved values from forward()
-        pass
+        x         = cache['x']
+        h_prev    = cache['h_prev']
+        c_prev    = cache['c_prev']
+        f         = cache['f']
+        i         = cache['i']
+        candidate = cache['candidate']
+        o         = cache['o']
+        c         = cache['c']
+        tanh_c    = cache['tanh_c']
+
+        # step 1 — gradient from h = tanh_c * o
+        d_tanh_c = dh * o
+        d_o      = dh * tanh_c
+
+        # step 2 — gradient through cell state
+        dc_total = d_tanh_c * (1 - tanh_c**2) + dc
+
+        # step 3 — gradient through each gate (chain rule through sigmoid/tanh)
+        d_pre_o = d_o * o * (1 - o)
+        d_pre_f = (dc_total * c_prev) * f * (1 - f)
+        d_pre_i = (dc_total * candidate) * i * (1 - i)
+        d_pre_c = (dc_total * i) * (1 - candidate**2)
+
+        # step 4 — weight gradients
+        self.dW_o = x.reshape(-1,1) @ d_pre_o.reshape(1,-1)
+        self.dW_f = x.reshape(-1,1) @ d_pre_f.reshape(1,-1)
+        self.dW_i = x.reshape(-1,1) @ d_pre_i.reshape(1,-1)
+        self.dW_c = x.reshape(-1,1) @ d_pre_c.reshape(1,-1)
+
+        self.dU_o = h_prev.reshape(-1,1) @ d_pre_o.reshape(1,-1)
+        self.dU_f = h_prev.reshape(-1,1) @ d_pre_f.reshape(1,-1)
+        self.dU_i = h_prev.reshape(-1,1) @ d_pre_i.reshape(1,-1)
+        self.dU_c = h_prev.reshape(-1,1) @ d_pre_c.reshape(1,-1)
+
+        self.db_o = d_pre_o
+        self.db_f = d_pre_f
+        self.db_i = d_pre_i
+        self.db_c = d_pre_c
+
+        # step 5 — pass gradients to previous timestep
+        dx      = d_pre_o @ self.W_o.T + d_pre_f @ self.W_f.T + d_pre_i @ self.W_i.T + d_pre_c @ self.W_c.T
+        dh_prev = d_pre_o @ self.U_o.T + d_pre_f @ self.U_f.T + d_pre_i @ self.U_i.T + d_pre_c @ self.U_c.T
+        dc_prev = dc_total * f
+
+        return dx, dh_prev, dc_prev
 
 
     def forget_gate(self, x, h_prev):
@@ -84,3 +123,17 @@ class LSTM:
         output_h = h_prev @ self.U_o
         output = sigmoid(output_x + output_h + self.b_o)
         return output
+
+    def zero_grad(self):
+        self.dW_o = np.zeros_like(self.W_o)
+        self.dW_f = np.zeros_like(self.W_f)
+        self.dW_i = np.zeros_like(self.W_i)
+        self.dW_c = np.zeros_like(self.W_c)
+        self.dU_o = np.zeros_like(self.U_o)
+        self.dU_f = np.zeros_like(self.U_f)
+        self.dU_i = np.zeros_like(self.U_i)
+        self.dU_c = np.zeros_like(self.U_c)
+        self.db_o = np.zeros_like(self.b_o)
+        self.db_f = np.zeros_like(self.b_f)
+        self.db_i = np.zeros_like(self.b_i)
+        self.db_c = np.zeros_like(self.b_c)
