@@ -37,7 +37,7 @@ class LSTMDecoder:
         cache = {}
 
         # Run timestep t = -1
-        h, c, cache[-1] = self.lstm.forward(pre_inject, h, c)
+        h, c, cache[-1] = self.lstm.forward(pre_inject, c, h)
 
         # Run many to many
         i = 0
@@ -58,5 +58,38 @@ class LSTMDecoder:
             dx, dh, dc = self.lstm.backward(dh, dc, cache[t])
         dx, dh, dc = self.lstm.backward(dh, dc, cache[-1])
         self.dense_proj.backward(dx)
+    
+    def predict(self, cnn_features, start_token, end_token, max_length=20):
+        # Run CNN pre-injection
+        pre_inject = self.dense_proj.forward(cnn_features)
+        
+        # Initialize hidden state and cell state
+        h = np.zeros(self.hidden_dim)
+        c = np.zeros(self.hidden_dim)
+
+        # Run pre-injection
+        h, c, _ = self.lstm.forward(pre_inject, c, h)
+
+        # Run caption generation
+        i = 0
+        last_generated_token = None
+        generated_tokens = []
+        while i < max_length and last_generated_token != end_token:
+            if i == 0:
+                embedded_token = self.embedding.forward(start_token)
+            else:
+                embedded_token = self.embedding.forward(last_generated_token)
+            h, c, _ = self.lstm.forward(embedded_token, c, h)
+            output = self.dense_out.forward(h)
+            token = np.argmax(output)
+            generated_tokens.append(token)
+
+            # Update loop conditions
+            last_generated_token = token
+            i += 1
+        return generated_tokens
+
+
+
         
             
