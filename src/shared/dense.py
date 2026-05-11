@@ -9,7 +9,7 @@ class DenseLayer:
         else:
             if input_size is not None and output_size is not None:
                 # inisialisasi bobot dengan metode He/Xavier initialization
-                self.weights, self.bias = np.random.randn(input_size, output_size) * np.sqrt(2. / input_size)
+                self.weights = np.random.randn(input_size, output_size) * np.sqrt(2. / input_size)
                 self.bias = np.zeros(output_size)  # bias diinisialisasi ke nol
             else:
                 raise ValueError("NO WEIGHTS TO INITIALIZE")
