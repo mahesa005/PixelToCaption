@@ -3,7 +3,7 @@ from .layers import (
     Conv2DLayer, LocallyConnected2DLayer,
     MaxPooling2DLayer, AveragePooling2DLayer,
     GlobalMaxPooling2DLayer, GlobalAveragePooling2DLayer,
-    FlattenLayer
+    FlattenLayer, ActivationLayer
 )
 from ..shared.dense import DenseLayer
 

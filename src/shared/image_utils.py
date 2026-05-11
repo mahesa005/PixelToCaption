@@ -65,3 +65,50 @@ def extract_features(paths: list[str], output_path: str, batch_size: int = 64, e
     print(f"\nEkstraksi fitur selesai. Berhasil menyimpan {len(features_dict)} fitur ke {output_path}")
 
     return features_dict
+
+#cnn
+def load_image_cnn(path: str, target_dim: tuple = (150, 150)) -> np.ndarray:
+    try:
+        image = Image.open(path).convert("RGB")
+        return np.array(image.resize(target_dim), dtype=np.float32) / 255.0
+    except Exception as e:
+        print(f"Gagal memuat gambar {path}: {e}")
+        return None
+
+
+def load_batch_cnn(paths: list, target_dim: tuple = (150, 150)):
+    batch       = []
+    valid_paths = []
+
+    for path in paths:
+        img = load_image_cnn(path, target_dim)
+        if img is not None:
+            batch.append(img)
+            valid_paths.append(path)
+
+    return np.array(batch), valid_paths
+
+
+def extract_features_cnn(paths: list, output_path: str, encoder,
+                          batch_size: int = 64, target_dim: tuple = (150, 150)):
+    output_dir = os.path.dirname(os.path.abspath(output_path))
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    features_dict = {}
+
+    print(f"Ekstraksi fitur untuk {len(paths)} gambar (batch_size={batch_size})...")
+    for i in tqdm(range(0, len(paths), batch_size), desc="Extracting CNN"):
+        batch_paths              = paths[i : i + batch_size]
+        batch_images, valid_paths = load_batch_cnn(batch_paths, target_dim)
+
+        if len(batch_images) > 0:
+            batch_features = encoder.predict(batch_images, verbose=0)
+            for path, feature in zip(valid_paths, batch_features):
+                filename              = os.path.basename(path)
+                features_dict[filename] = feature
+
+    np.save(output_path, features_dict)
+    print(f"Selesai. {len(features_dict)} fitur disimpan ke {output_path}")
+
+    return features_dict
