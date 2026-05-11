@@ -8,18 +8,31 @@ class DenseLayer:
             self.bias = weights[1] if len(weights) > 1 else np.zeros(weights[0].shape[1])
         else:
             if input_size is not None and output_size is not None:
-                self.weights = np.random.randn(input_size, output_size)
-                self.bias = np.random.randn(output_size)
+                # inisialisasi bobot dengan metode He/Xavier initialization
+                self.weights, self.bias = np.random.randn(input_size, output_size) * np.sqrt(2. / input_size)
+                self.bias = np.zeros(output_size)  # bias diinisialisasi ke nol
             else:
                 raise ValueError("NO WEIGHTS TO INITIALIZE")
+        
+        # gradien bobot dan bias
+        self.dW = None
+        self.db = None
+        
 
     def forward(self, x):
         self.x = x
         return x @ self.weights + self.bias
 
     def backward(self, grad_out):
-        pass
-        # dL_dW = self.x.T @ grad_out
-        # dL_db = grad_out.sum()
-        # dL_dx = grad_out @ self.weights.T
-        # return dL_dx
+        # gradien input x
+        # nilai ini akan diteruskan ke layer sebelumnya (RNN/LSTM)
+        dL_dx = grad_out @ self.weights.T
+
+        # gradien bobot
+        self.dW = self.x.T @ grad_out
+
+        # gradien bias
+        # jumlahkan gradien dari semua sampel dalam batch untuk setiap unit output
+        self.db = grad_out.sum(axis=0)
+        
+        return dL_dx
