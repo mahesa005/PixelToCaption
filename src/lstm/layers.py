@@ -48,3 +48,15 @@ class LSTMDecoder:
             output[i] = self.dense_out.forward(h)
             i += 1
         return output, cache
+
+    def backward(self, cache, grad_outputs):
+        dh = np.zeros(self.hidden_dim,)
+        dc = np.zeros(self.hidden_dim,)
+
+        for t in reversed(range(len(cache) - 1)): # -1 because cache[-1] is for pre-injection
+            dh = self.dense_out.backward(grad_outputs[t]) # gradient output from timestep t
+            dx, dh, dc = self.lstm.backward(dh, dc, cache[t])
+        dx, dh, dc = self.lstm.backward(dh, dc, cache[-1])
+        self.dense_proj.backward(dx)
+        
+            
