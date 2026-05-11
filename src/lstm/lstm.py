@@ -29,7 +29,7 @@ class LSTM:
         self.b_i, self.b_f, self.b_c, self.b_o = self.b[0*h:1*h], self.b[1*h:2*h], self.b[2*h:3*h], self.b[3*h:4*h]
         self.embed_dim = self.W.shape[0]
 
-    def forward(self, x, c_prev, h_prev):
+    def forward(self, x, h_prev, c_prev):
         f = self.forget_gate(x, h_prev)
         i = self.input_gate(x, h_prev)
         candidate = self.candidate(x, h_prev)
