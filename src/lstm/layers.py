@@ -37,14 +37,14 @@ class LSTMDecoder:
         cache = {}
 
         # Run timestep t = -1
-        h, c, cache[-1] = self.lstm.forward(pre_inject, c, h)
+        h, c, cache[-1] = self.lstm.forward(pre_inject, h, c)
 
         # Run many to many
         i = 0
         output = {}
         for token in caption_tokens:
             embedded_token = self.embedding.forward(token)
-            h, c, cache[i] = self.lstm.forward(embedded_token, c, h)
+            h, c, cache[i] = self.lstm.forward(embedded_token, h, c)
             output[i] = self.dense_out.forward(h)
             i += 1
         return output, cache
