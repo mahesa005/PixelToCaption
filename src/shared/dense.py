@@ -28,11 +28,10 @@ class DenseLayer:
         # nilai ini akan diteruskan ke layer sebelumnya (RNN/LSTM)
         dL_dx = grad_out @ self.weights.T
 
-        # gradien bobot
-        self.dW = self.x.T @ grad_out
+        # gradien bobot: outer product untuk input 1D (single sample)
+        self.dW = np.outer(self.x, grad_out)   # (in_d, out_d)
 
         # gradien bias
-        # jumlahkan gradien dari semua sampel dalam batch untuk setiap unit output
-        self.db = grad_out.sum(axis=0)
-        
+        self.db = grad_out
+
         return dL_dx

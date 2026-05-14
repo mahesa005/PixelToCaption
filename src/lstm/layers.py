@@ -56,7 +56,7 @@ class LSTMDecoder:
         dc = np.zeros(self.hidden_dim,)
 
         for t in reversed(range(len(cache) - 1)): # -1 because cache[-1] is for pre-injection
-            dh = self.dense_out.backward(grad_outputs[t]) # gradient output from timestep t
+            dh = self.dense_out.backward(grad_outputs[t]) + dh # accumulate BPTT gradient
             dx, dh, dc = self.lstm.backward(dh, dc, cache[t])
         dx, dh, dc = self.lstm.backward(dh, dc, cache[-1])
         self.dense_proj.backward(dx)
@@ -70,7 +70,7 @@ class LSTMDecoder:
         c = np.zeros(self.hidden_dim)
 
         # Run pre-injection
-        h, c, _ = self.lstm.forward(pre_inject, c, h)
+        h, c, _ = self.lstm.forward(pre_inject, h, c)
 
         # Run caption generation
         i = 0
@@ -81,7 +81,7 @@ class LSTMDecoder:
                 embedded_token = self.embedding.forward(start_token)
             else:
                 embedded_token = self.embedding.forward(last_generated_token)
-            h, c, _ = self.lstm.forward(embedded_token, c, h)
+            h, c, _ = self.lstm.forward(embedded_token, h, c)
             output = self.dense_out.forward(h)
             token = np.argmax(output)
             generated_tokens.append(token)

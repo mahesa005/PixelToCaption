@@ -28,6 +28,7 @@ class LSTM:
         self.U_i, self.U_f, self.U_c, self.U_o = self.U[:, 0*h:1*h], self.U[:, 1*h:2*h], self.U[:, 2*h:3*h], self.U[:, 3*h:4*h]
         self.b_i, self.b_f, self.b_c, self.b_o = self.b[0*h:1*h], self.b[1*h:2*h], self.b[2*h:3*h], self.b[3*h:4*h]
         self.embed_dim = self.W.shape[0]
+        self.zero_grad()
 
     def forward(self, x, h_prev, c_prev):
         f = self.forget_gate(x, h_prev)
@@ -76,21 +77,21 @@ class LSTM:
         d_pre_i = (dc_total * candidate) * i * (1 - i)
         d_pre_c = (dc_total * i) * (1 - candidate**2)
 
-        # step 4 — weight gradients
-        self.dW_o = x.reshape(-1,1) @ d_pre_o.reshape(1,-1)
-        self.dW_f = x.reshape(-1,1) @ d_pre_f.reshape(1,-1)
-        self.dW_i = x.reshape(-1,1) @ d_pre_i.reshape(1,-1)
-        self.dW_c = x.reshape(-1,1) @ d_pre_c.reshape(1,-1)
+        # step 4 — weight gradients (accumulated across timesteps; reset by zero_grad())
+        self.dW_o += x.reshape(-1,1) @ d_pre_o.reshape(1,-1)
+        self.dW_f += x.reshape(-1,1) @ d_pre_f.reshape(1,-1)
+        self.dW_i += x.reshape(-1,1) @ d_pre_i.reshape(1,-1)
+        self.dW_c += x.reshape(-1,1) @ d_pre_c.reshape(1,-1)
 
-        self.dU_o = h_prev.reshape(-1,1) @ d_pre_o.reshape(1,-1)
-        self.dU_f = h_prev.reshape(-1,1) @ d_pre_f.reshape(1,-1)
-        self.dU_i = h_prev.reshape(-1,1) @ d_pre_i.reshape(1,-1)
-        self.dU_c = h_prev.reshape(-1,1) @ d_pre_c.reshape(1,-1)
+        self.dU_o += h_prev.reshape(-1,1) @ d_pre_o.reshape(1,-1)
+        self.dU_f += h_prev.reshape(-1,1) @ d_pre_f.reshape(1,-1)
+        self.dU_i += h_prev.reshape(-1,1) @ d_pre_i.reshape(1,-1)
+        self.dU_c += h_prev.reshape(-1,1) @ d_pre_c.reshape(1,-1)
 
-        self.db_o = d_pre_o
-        self.db_f = d_pre_f
-        self.db_i = d_pre_i
-        self.db_c = d_pre_c
+        self.db_o += d_pre_o
+        self.db_f += d_pre_f
+        self.db_i += d_pre_i
+        self.db_c += d_pre_c
 
         # step 5 — pass gradients to previous timestep
         dx      = d_pre_o @ self.W_o.T + d_pre_f @ self.W_f.T + d_pre_i @ self.W_i.T + d_pre_c @ self.W_c.T
