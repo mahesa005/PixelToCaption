@@ -1,7 +1,9 @@
 import numpy as np
-from ..shared.dense import DenseLayer
-from ..shared.embedding_layer import EmbeddingLayer
-from ..lstm.lstm import LSTM
+from shared.dense import DenseLayer
+from shared.embedding_layer import EmbeddingLayer
+from lstm.lstm import LSTM
+from shared.optimizer import AdamOptimizer
+from shared.loss_function import SparseCategoricalCrossEntropy
 
 class LSTMDecoder:
     """
@@ -89,7 +91,57 @@ class LSTMDecoder:
             i += 1
         return generated_tokens
 
+    def fit(self, features, captions, targets, epochs=10, lr=0.001, use_keras=True, keras_model=None):
+        if use_keras:
+            if keras_model is None:
+                raise ValueError("keras_model required for Keras training")
+            return keras_model.fit(features, targets, epochs=epochs)
 
+        optimizer = AdamOptimizer(learning_rate=lr)
+        loss_fn = SparseCategoricalCrossEntropy()
 
-        
+        for epoch in range(epochs):
+            total_loss = 0
+
+            for cnn_feature, caption_tokens, target_tokens in zip(features, captions, targets):
+                self.lstm.zero_grad()
+
+                # forward
+                outputs, cache = self.forward(cnn_feature, caption_tokens)
+
+                # compute loss + grad_outputs per timestep
+                grad_outputs = {}
+                for t in outputs:
+                    total_loss += loss_fn.forward(outputs[t], target_tokens[t])
+                    grad_outputs[t] = loss_fn.backward(outputs[t], target_tokens[t])
+
+                # backward
+                self.backward(cache, grad_outputs)
+
+                # update weights
+                params = {
+                    'W_i': self.lstm.W_i, 'W_f': self.lstm.W_f,
+                    'W_c': self.lstm.W_c, 'W_o': self.lstm.W_o,
+                    'U_i': self.lstm.U_i, 'U_f': self.lstm.U_f,
+                    'U_c': self.lstm.U_c, 'U_o': self.lstm.U_o,
+                    'dense_out_W': self.dense_out.weights,
+                    'dense_out_b': self.dense_out.bias,
+                    'dense_proj_W': self.dense_proj.weights,
+                    'dense_proj_b': self.dense_proj.bias,
+                }
+                grads = {
+                    'W_i': self.lstm.dW_i, 'W_f': self.lstm.dW_f,
+                    'W_c': self.lstm.dW_c, 'W_o': self.lstm.dW_o,
+                    'U_i': self.lstm.dU_i, 'U_f': self.lstm.dU_f,
+                    'U_c': self.lstm.dU_c, 'U_o': self.lstm.dU_o,
+                    'dense_out_W': self.dense_out.dW,
+                    'dense_out_b': self.dense_out.db,
+                    'dense_proj_W': self.dense_proj.dW,
+                    'dense_proj_b': self.dense_proj.db,
+                }
+                optimizer.step(params, grads)
+
+            print(f"Epoch {epoch+1}/{epochs} — Loss: {total_loss:.4f}")
+
             
+                

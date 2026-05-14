@@ -1,5 +1,5 @@
 import numpy as np
-from ..shared.activation_functions import tanh, sigmoid
+from shared.activation_functions import tanh, sigmoid
 
 class LSTM:
     """
