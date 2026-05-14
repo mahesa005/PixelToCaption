@@ -23,8 +23,17 @@ HIDDEN_DIM  = 512
 EPOCHS      = 20
 BATCH_SIZE  = 64
 
-# Load Data 
+# Load Data
 def load_data():
+    """
+    Load CNN features, captions, and build the tokenizer.
+
+    Returns:
+        features: dict mapping image_id to feature vector, shape (2048,).
+        tokenizer: fitted Keras tokenizer.
+        cleaned_mapping: dict mapping image_id to list of cleaned caption strings.
+        max_length: maximum caption length in tokens.
+    """
     # load CNN features
     features = np.load(FEATURES_PATH, allow_pickle=True).item()
 
@@ -40,6 +49,23 @@ def load_data():
 
 # Prepare X, Y
 def prepare_sequences(features, tokenizer, cleaned_mapping, max_length, embed_dim):
+    """
+    Build teacher-forcing input/output pairs from captions.
+
+    For each caption of length T, produces T-1 (input_seq, cnn_feature) -> target_token
+    pairs by shifting the sequence one step at a time.
+
+    Args:
+        features: dict mapping image_id to CNN feature vector.
+        tokenizer: fitted Keras tokenizer.
+        cleaned_mapping: dict mapping image_id to list of caption strings.
+        max_length: sequence length to pad/truncate inputs to.
+        embed_dim: unused here, kept for interface consistency.
+
+    Returns:
+        X: list of (cnn_feature, padded_input_seq) tuples.
+        y: numpy array of target token indices, shape (N,).
+    """
     vocab_size = len(tokenizer.word_index) + 1
 
     X, y = [], []
@@ -71,6 +97,22 @@ def prepare_sequences(features, tokenizer, cleaned_mapping, max_length, embed_di
 
 # Build Model
 def build_keras_model(vocab_size, embed_dim, hidden_dim, max_length, cnn_feature_dim=2048):
+    """
+    Build and compile the Keras LSTM captioning model.
+
+    Uses a pre-injection architecture: CNN features are projected to embed_dim
+    and prepended to the embedded caption sequence before the LSTM.
+
+    Args:
+        vocab_size: total number of tokens in the vocabulary.
+        embed_dim: embedding and CNN projection dimension.
+        hidden_dim: LSTM hidden state size.
+        max_length: fixed caption input length (tokens).
+        cnn_feature_dim: dimension of the input CNN feature vector (default 2048 for InceptionV3).
+
+    Returns:
+        model: compiled Keras Model with Adam optimizer and sparse CCE loss.
+    """
     # CNN feature input
     cnn_input    = Input(shape=(cnn_feature_dim,), name='cnn_input')
     cnn_proj     = Dense(embed_dim, activation='relu', name='cnn_proj')(cnn_input)
@@ -99,6 +141,7 @@ def build_keras_model(vocab_size, embed_dim, hidden_dim, max_length, cnn_feature
 
 # Train
 def train():
+    """Full training pipeline: load data, prepare sequences, build model, train, and save weights."""
     print("Loading data...")
     features, tokenizer, cleaned_mapping, max_length = load_data()
 
