@@ -7,7 +7,13 @@ from shared.loss_function import SparseCategoricalCrossEntropy
 
 class LSTMDecoder:
     """
-    Input comment nanti
+    Image captioning decoder using a single LSTM cell.
+
+    Architecture:
+        1. CNN features are projected to embed_dim via dense_proj (pre-injection).
+        2. The projected feature is fed as the first LSTM input (timestep -1).
+        3. Caption tokens are embedded and fed sequentially through the LSTM.
+        4. At each timestep, dense_out maps the hidden state to a vocab distribution.
     """
     def __init__(
         self,
@@ -21,6 +27,20 @@ class LSTMDecoder:
         vocab_size=None,
         dense_proj_input=None,
     ):
+        """
+        Initialize the decoder from Keras layers or dimension specs for random init.
+
+        Args:
+            lstm_keras_layer: Keras LSTM layer (optional, for weight transfer).
+            embedding_keras_layer: Keras Embedding layer (optional).
+            dense_proj_keras_layer: Keras Dense layer for CNN projection (optional).
+            dense_out_keras_layer: Keras Dense output layer (optional).
+            W, U, b: explicit LSTM weight arrays.
+            embed_dim: embedding dimension.
+            hidden_dim: LSTM hidden state dimension.
+            vocab_size: number of tokens in vocabulary.
+            dense_proj_input: input size for the CNN projection dense layer.
+        """
         self.lstm       = LSTM(lstm_keras_layer, W, U, b, embed_dim, hidden_dim)
         self.embedding  = EmbeddingLayer(embedding_keras_layer, vocab_size, embed_dim)
         self.dense_proj = DenseLayer(dense_proj_keras_layer, dense_proj_input, embed_dim)
@@ -30,6 +50,18 @@ class LSTMDecoder:
         self.vocab_size = vocab_size
 
     def forward(self, cnn_features, caption_tokens):
+        """
+        Run a full forward pass over one (image, caption) pair.
+
+        Args:
+            cnn_features: CNN feature vector, shape (cnn_feature_dim,)
+            caption_tokens: list of token indices (input side, e.g. starttoken..last-1)
+
+        Returns:
+            output: dict mapping timestep index to logit vector, shape (vocab_size,)
+            cache: dict mapping timestep index to LSTM cache (used in backward).
+                   Key -1 is the pre-injection timestep.
+        """
         # Run CNN pre-injection
         pre_inject = self.dense_proj.forward(cnn_features)
         
@@ -52,16 +84,36 @@ class LSTMDecoder:
         return output, cache
 
     def backward(self, cache, grad_outputs):
+        """
+        Run BPTT over all timesteps and accumulate gradients into each layer.
+
+        Args:
+            cache: dict returned by forward (keys: -1, 0, 1, ..., T-1).
+            grad_outputs: dict mapping timestep index to gradient of loss
+                          w.r.t. the logit output at that timestep, shape (vocab_size,).
+        """
         dh = np.zeros(self.hidden_dim,)
         dc = np.zeros(self.hidden_dim,)
 
         for t in reversed(range(len(cache) - 1)): # -1 because cache[-1] is for pre-injection
-            dh = self.dense_out.backward(grad_outputs[t]) # gradient output from timestep t
+            dh = self.dense_out.backward(grad_outputs[t]) + dh # accumulate BPTT gradient
             dx, dh, dc = self.lstm.backward(dh, dc, cache[t])
         dx, dh, dc = self.lstm.backward(dh, dc, cache[-1])
         self.dense_proj.backward(dx)
     
     def predict(self, cnn_features, start_token, end_token, max_length=20):
+        """
+        Generate a caption via greedy decoding.
+
+        Args:
+            cnn_features: CNN feature vector, shape (cnn_feature_dim,)
+            start_token: integer index of the start token.
+            end_token: integer index of the end token (generation stops here).
+            max_length: maximum number of tokens to generate.
+
+        Returns:
+            generated_tokens: list of predicted token indices (excludes start token).
+        """
         # Run CNN pre-injection
         pre_inject = self.dense_proj.forward(cnn_features)
         
@@ -70,7 +122,7 @@ class LSTMDecoder:
         c = np.zeros(self.hidden_dim)
 
         # Run pre-injection
-        h, c, _ = self.lstm.forward(pre_inject, c, h)
+        h, c, _ = self.lstm.forward(pre_inject, h, c)
 
         # Run caption generation
         i = 0
@@ -81,7 +133,7 @@ class LSTMDecoder:
                 embedded_token = self.embedding.forward(start_token)
             else:
                 embedded_token = self.embedding.forward(last_generated_token)
-            h, c, _ = self.lstm.forward(embedded_token, c, h)
+            h, c, _ = self.lstm.forward(embedded_token, h, c)
             output = self.dense_out.forward(h)
             token = np.argmax(output)
             generated_tokens.append(token)
@@ -92,6 +144,18 @@ class LSTMDecoder:
         return generated_tokens
 
     def fit(self, features, captions, targets, epochs=10, lr=0.001, use_keras=True, keras_model=None):
+        """
+        Train the decoder using either Keras or the from-scratch implementation.
+
+        Args:
+            features: list of CNN feature vectors.
+            captions: list of input token sequences (one per sample).
+            targets: list of target token sequences (one per sample).
+            epochs: number of training epochs.
+            lr: learning rate for Adam (from-scratch mode only).
+            use_keras: if True, delegate training to keras_model.fit.
+            keras_model: compiled Keras Model (required when use_keras=True).
+        """
         if use_keras:
             if keras_model is None:
                 raise ValueError("keras_model required for Keras training")
