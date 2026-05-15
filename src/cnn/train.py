@@ -4,6 +4,58 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
+# fix LocallyConnected2D yang dihapus dari Keras versi baru
+if not hasattr(layers, 'LocallyConnected2D'):
+    from keras.src.layers import Layer
+
+    class LocallyConnected2D(Layer):
+        def __init__(self, filters, kernel_size, activation='relu', **kwargs):
+            super().__init__(**kwargs)
+            self.filters     = filters
+            self.kernel_size = kernel_size if isinstance(kernel_size, tuple) else (kernel_size, kernel_size)
+            self.activation  = keras.activations.get(activation)
+
+        def build(self, input_shape):
+            _, H, W, C  = input_shape
+            kH, kW      = self.kernel_size
+            self.out_H  = H - kH + 1
+            self.out_W  = W - kW + 1
+            self.kH     = kH
+            self.kW     = kW
+            self.C      = C
+            self.kernel = self.add_weight(
+                shape=(self.out_H * self.out_W, kH * kW * C, self.filters),
+                initializer='glorot_uniform', trainable=True, name='kernel'
+            )
+            self.bias = self.add_weight(
+                shape=(self.out_H * self.out_W, self.filters),
+                initializer='zeros', trainable=True, name='bias'
+            )
+
+        def call(self, x):
+            B       = tf.shape(x)[0]
+            patches = []
+            for i in range(self.out_H):
+                for j in range(self.out_W):
+                    patch = x[:, i:i+self.kH, j:j+self.kW, :]
+                    patches.append(tf.reshape(patch, [B, -1]))
+            patches = tf.stack(patches, axis=1)
+            out     = tf.einsum('bpk,pkf->bpf', patches, self.kernel) + self.bias
+            out     = tf.reshape(out, [B, self.out_H, self.out_W, self.filters])
+            return self.activation(out)
+
+        def get_config(self):
+            config = super().get_config()
+            config.update({
+                'filters':     self.filters,
+                'kernel_size': self.kernel_size,
+                'activation':  keras.activations.serialize(self.activation)
+            })
+            return config
+
+    layers.LocallyConnected2D = LocallyConnected2D
+
+
 CLASS_NAMES = ['buildings', 'forest', 'glacier', 'mountain', 'sea', 'street']
 NUM_CLASSES = len(CLASS_NAMES)
 IMG_SIZE    = (150, 150)
@@ -59,7 +111,7 @@ def build_cnn_model(num_conv_layers=2, filters=None, kernel_sizes=None,
 
 
 def build_locally_connected_model(filters=None, kernel_sizes=None,
-                                   pooling_type='max', img_size=IMG_SIZE,
+                                   pooling_type='max', img_size=(32, 32),
                                    num_classes=NUM_CLASSES):
     if filters is None:
         filters = [32, 64]
