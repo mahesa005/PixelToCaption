@@ -1,6 +1,16 @@
 import numpy as np
 import json
 from pathlib import Path
+import tensorflow as tf
+
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    print(f"GPU enabled: {[gpu.name for gpu in gpus]}")
+else:
+    print("No GPU found, running on CPU")
+
 from tensorflow import keras
 from tensorflow.keras.applications import InceptionV3
 from tensorflow.keras.layers import Input, LSTM, Dense, Embedding, Concatenate
