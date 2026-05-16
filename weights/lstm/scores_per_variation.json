@@ -1,0 +1,44 @@
+{
+  "1layers_128hidden": {
+    "bleu4": 0.1393,
+    "meteor": 0.3470,
+    "time": 1051.0,
+    "n_layers": 1,
+    "hidden_dim": 128
+  },
+  "2layers_128hidden": {
+    "bleu4": 0.1543,
+    "meteor": 0.3682,
+    "time": 1158.5,
+    "n_layers": 2,
+    "hidden_dim": 128
+  },
+  "3layers_128hidden": {
+    "bleu4": 0.1483,
+    "meteor": 0.3427,
+    "time": 1069.1,
+    "n_layers": 3,
+    "hidden_dim": 128
+  },
+  "1layers_512hidden": {
+    "bleu4": 0.1463,
+    "meteor": 0.3500,
+    "time": 1172.0,
+    "n_layers": 1,
+    "hidden_dim": 512
+  },
+  "2layers_512hidden": {
+    "bleu4": 0.2298,
+    "meteor": 0.4254,
+    "time": 1091.6,
+    "n_layers": 2,
+    "hidden_dim": 512
+  },
+  "3layers_512hidden": {
+    "bleu4": 0.2115,
+    "meteor": 0.4089,
+    "time": 1090.6,
+    "n_layers": 3,
+    "hidden_dim": 512
+  }
+}
