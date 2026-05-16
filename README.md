@@ -26,6 +26,7 @@ PixelToCaption/
 │   │   └── utils.py
 │   ├── rnn/                  # RNN image captioning
 │   │   ├── rnn.py            # From-scratch RNN cell
+│   │   ├── layers.py         # RNNDecoder (multi-layer, from scratch)
 │   │   ├── train.py          # Keras reference training script
 │   │   └── notebook.ipynb    # Experiments & evaluation
 │   └── lstm/                 # LSTM image captioning
@@ -150,3 +151,6 @@ jupyter notebook src/lstm/notebook.ipynb
 
 IF3270 — Machine Learning
 Institut Teknologi Bandung, Semester 6, 2025/2026
+
+## Attachment
+https://drive.google.com/drive/folders/1hbqDSzFquf_ZXHe9QKcc2jIv2HXUtCPO?usp=drive_link
