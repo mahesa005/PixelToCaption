@@ -1,5 +1,5 @@
 .venv
 data/intel/
-!data/features/
+data/features/
 !data/.gitkeep
 weights/cnn/
