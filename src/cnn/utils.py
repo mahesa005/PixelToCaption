@@ -1,28 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from PIL import Image
 from sklearn.metrics import f1_score, classification_report
-
-
-# loader khusus Intel Image Classification
-def load_image_cnn(path, target_dim=(150, 150)):
-    try:
-        image = Image.open(path).convert("RGB")
-        return np.array(image.resize(target_dim), dtype=np.float32) / 255.0
-    except Exception as e:
-        print(f"Gagal memuat gambar {path}: {e}")
-        return None
-
-def load_batch_cnn(paths, target_dim=(150, 150)):
-    batch = []
-    valid_paths = []
-    for path in paths:
-        img = load_image_cnn(path, target_dim)
-        if img is not None:
-            batch.append(img)
-            valid_paths.append(path)
-    return np.array(batch), valid_paths
 
 
 # evaluasi

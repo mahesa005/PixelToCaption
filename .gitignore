@@ -1,6 +1,12 @@
 .venv
-data/*
+data/Images/*
 !data/.gitkeep
+__pycache__/
+data/Images/*
+.venv-wsl
+__pycache__/
+data/Images/*
+.venv-wsl
 __pycache__/
 *.pyc
 *.pyo

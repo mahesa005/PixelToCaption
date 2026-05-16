@@ -31,8 +31,6 @@ class EmbeddingLayer:
         # hanya update baris yang digunakan (token) dengan gradien yang diterima
         self.dW[self.token] = grad_out
 
-        # karena Embedding layer adalah layer paling bawah/input
-        # tidak ada gradien untuk diteruskan ke layer sebelumnya
         return None
 
         

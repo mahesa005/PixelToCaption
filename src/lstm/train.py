@@ -13,9 +13,28 @@ else:
 
 from tensorflow import keras
 from tensorflow.keras.applications import InceptionV3
-from tensorflow.keras.layers import Input, LSTM, Dense, Embedding, Concatenate
+from tensorflow.keras.layers import Input, LSTM, Dense, Embedding, Reshape
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing.text import tokenizer_from_json
+
+
+class PrependCNN(tf.keras.layers.Layer):
+    """
+    Concatenates a (batch, 1, embed_dim) CNN projection in front of the
+    (batch, T, embed_dim) caption embedding and correctly propagates the
+    Embedding mask so padding zeros are not fed to the LSTM.
+    """
+    def call(self, inputs):
+        cnn_proj, cap_embed = inputs
+        return tf.concat([cnn_proj, cap_embed], axis=1)
+
+    def compute_mask(self, inputs, mask=None):
+        _, cap_mask = mask
+        if cap_mask is None:
+            return None
+        batch_size = tf.shape(inputs[0])[0]
+        cnn_mask   = tf.ones((batch_size, 1), dtype=tf.bool)
+        return tf.concat([cnn_mask, cap_mask], axis=1)
 
 from shared.preprocessing import (
     load_captions, clean_and_wrap_captions, build_tokenizer,
@@ -126,14 +145,14 @@ def build_keras_model(vocab_size, embed_dim, hidden_dim, max_length, cnn_feature
     # CNN feature input
     cnn_input    = Input(shape=(cnn_feature_dim,), name='cnn_input')
     cnn_proj     = Dense(embed_dim, activation='relu', name='cnn_proj')(cnn_input)
-    cnn_proj     = keras.layers.Reshape((1, embed_dim))(cnn_proj)  # (1, embed_dim)
+    cnn_proj     = Reshape((1, embed_dim))(cnn_proj)  # (1, embed_dim)
 
     # caption sequence input
     cap_input    = Input(shape=(max_length,), name='cap_input')
     cap_embed    = Embedding(vocab_size, embed_dim, mask_zero=True)(cap_input)
 
-    # pre-inject: concat CNN feature di depan sequence
-    merged       = Concatenate(axis=1)([cnn_proj, cap_embed])  # (max_length+1, embed_dim)
+    # pre-inject: prepend CNN feature with correct mask propagation
+    merged       = PrependCNN()([cnn_proj, cap_embed])
 
     # LSTM decoder
     lstm_out     = LSTM(hidden_dim, return_sequences=False)(merged)
